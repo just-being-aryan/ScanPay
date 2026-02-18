@@ -13,7 +13,6 @@ import Animated, {
   withRepeat,
 } from "react-native-reanimated";
 import { useCart } from "../context/CartContext";
-
 import ProductPreviewSheet from "../components/ProductPreviewSheet";
 import { PRODUCTS } from "../data/products";
 
@@ -23,14 +22,15 @@ export default function ScanScreen() {
   const [scanned, setScanned] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [quickAdd, setQuickAdd] = useState(false);
+  const [toast, setToast] = useState<null | { name: string }>(null);
+  const [scanLocked, setScanLocked] = useState(false);
 
   const rotation = useSharedValue(0);
 
-  const spinStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ rotate: `${rotation.value}deg` }],
-    };
-  });
+  const spinStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
 
   if (!permission) {
     return <View style={{ flex: 1, backgroundColor: "#000" }} />;
@@ -51,13 +51,11 @@ export default function ScanScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>ScanPay</Text>
         <Ionicons name="home-outline" size={22} color="#fff" />
       </View>
 
-      {/* CAMERA */}
       <View style={styles.cameraSection}>
         <CameraView
           style={StyleSheet.absoluteFill}
@@ -65,7 +63,7 @@ export default function ScanScreen() {
             barcodeTypes: ["qr", "ean13", "code128"],
           }}
           onBarcodeScanned={({ data }) => {
-            if (scanned || selectedProduct) return;
+            if (scanned || selectedProduct || scanLocked) return;
 
             setScanned(true);
             setIsCapturing(true);
@@ -77,7 +75,20 @@ export default function ScanScreen() {
 
             setTimeout(() => {
               const product = PRODUCTS[data];
-              if (product) setSelectedProduct(product);
+              if (!product) return;
+
+              if (quickAdd) {
+                addToCart({ ...product, qty: 1 });
+                setToast({ name: product.name });
+                setScanLocked(true);
+
+                setTimeout(() => {
+                  setToast(null);
+                  setScanLocked(false);
+                }, 2000);
+              } else {
+                setSelectedProduct(product);
+              }
             }, 500);
 
             setTimeout(() => {
@@ -99,7 +110,6 @@ export default function ScanScreen() {
                 <Ionicons name="reload" size={18} color="#fff" />
               </Animated.View>
             )}
-
             <Text style={styles.scanText}>
               {isCapturing
                 ? "Capturing… hold steady"
@@ -109,10 +119,9 @@ export default function ScanScreen() {
         )}
       </View>
 
-      {/* BOTTOM */}
       <View style={styles.bottomSection}>
         {!selectedProduct ? (
-          <>
+          <View style={styles.bottomContent}>
             <Pressable
               style={styles.articleRow}
               onPress={() => router.push("/enter-article")}
@@ -123,34 +132,71 @@ export default function ScanScreen() {
               </Text>
             </Pressable>
 
-            <View style={styles.quickAddRow}>
-              <View style={styles.checkbox} />
+            <Pressable
+              style={styles.quickAddRow}
+              onPress={() => setQuickAdd((v) => !v)}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  quickAdd && styles.checkboxActive,
+                ]}
+              />
               <Text style={styles.quickAddText}>
                 Enable Quick Add to Cart
               </Text>
-            </View>
-          </>
+            </Pressable>
+
+            {toast && (
+              <View style={styles.toastSpacer}>
+                <Animated.View
+                  entering={FadeIn}
+                  exiting={FadeOut}
+                  style={styles.toast}
+                >
+                  <View style={styles.toastIcon}>
+                    <Ionicons name="checkmark" size={16} color="#fff" />
+                  </View>
+                  <View>
+                    <Text style={styles.toastTitle}>
+                      {toast.name} added
+                    </Text>
+                    <Text style={styles.toastSub}>
+                      Successfully added to cart
+                    </Text>
+                  </View>
+                </Animated.View>
+              </View>
+            )}
+          </View>
         ) : (
           <ProductPreviewSheet
             product={selectedProduct}
             onAdd={(item) => {
               addToCart(item);
               setSelectedProduct(null);
+              setToast({ name: item.name });
+              setScanLocked(true);
+
+              setTimeout(() => {
+                setToast(null);
+                setScanLocked(false);
+              }, 2000);
             }}
-            onClose={() => {
-              setSelectedProduct(null);
-            }}
+            onClose={() => setSelectedProduct(null)}
           />
         )}
       </View>
 
-      {/* FOOTER */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           Internet required only for payment
         </Text>
 
-        <Pressable style={styles.cartBtn} onPress={() => router.push("/cart")}>
+        <Pressable
+          style={styles.cartBtn}
+          onPress={() => router.push("/cart")}
+        >
           <Text style={styles.cartLeft}>View Cart</Text>
           <Text style={styles.cartRight}>View</Text>
         </Pressable>
@@ -160,10 +206,7 @@ export default function ScanScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
+  container: { flex: 1, backgroundColor: "#000" },
 
   header: {
     height: 56,
@@ -173,17 +216,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
-  headerTitle: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "600",
-  },
+  headerTitle: { color: "#fff", fontSize: 22, fontWeight: "600" },
 
-  cameraSection: {
-    flex: 6,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  cameraSection: { flex: 6, justifyContent: "center", alignItems: "center" },
 
   capturePill: {
     position: "absolute",
@@ -198,22 +233,22 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
 
-  scanText: {
-    color: "#fff",
-    fontSize: 14,
-  },
+  scanText: { color: "#fff", fontSize: 14 },
 
   bottomSection: {
     flex: 4,
     paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: 32,
+  },
+
+  bottomContent: {
     alignItems: "center",
+    gap: 24,
   },
 
   articleRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
     gap: 10,
   },
 
@@ -237,15 +272,38 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
 
-  quickAddText: {
-    color: "#aaa",
-    fontSize: 14,
+  checkboxActive: {
+    backgroundColor: "#2563eb",
+    borderColor: "#2563eb",
   },
 
-  footer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+  quickAddText: { color: "#aaa", fontSize: 14 },
+
+  toastSpacer: { marginTop: 35 },
+
+  toast: {
+    width: "100%",
+    backgroundColor: "#0f172a",
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
+
+  toastIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#22c55e",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  toastTitle: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  toastSub: { color: "#cbd5f5", fontSize: 12, marginTop: 2 },
+
+  footer: { paddingHorizontal: 20, paddingBottom: 20 },
 
   footerText: {
     color: "#aaa",
@@ -263,15 +321,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
-  cartLeft: {
-    color: "#888",
-    fontSize: 16,
-  },
-
-  cartRight: {
-    color: "#888",
-    fontSize: 14,
-  },
+  cartLeft: { color: "#888", fontSize: 16 },
+  cartRight: { color: "#888", fontSize: 14 },
 
   center: {
     flex: 1,
