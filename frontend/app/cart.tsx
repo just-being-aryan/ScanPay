@@ -51,7 +51,7 @@ export default function CartPage() {
               <View style={styles.qtyRow}>
                 <Pressable
                   style={styles.qtyBtn}
-                  onPress={() => updateQty(item.sku, item.qty - 1)}
+                  onPress={() => updateQty(item.productId, item.qty - 1)}
                 >
                   <Text style={styles.qtyText}>−</Text>
                 </Pressable>
@@ -60,7 +60,7 @@ export default function CartPage() {
 
                 <Pressable
                   style={styles.qtyBtn}
-                  onPress={() => updateQty(item.sku, item.qty + 1)}
+                  onPress={() => updateQty(item.productId, item.qty + 1)}
                 >
                   <Text style={styles.qtyText}>+</Text>
                 </Pressable>

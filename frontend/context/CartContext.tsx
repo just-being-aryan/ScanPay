@@ -6,8 +6,8 @@ type CartItem = Product & { qty: number };
 type CartContextType = {
   items: CartItem[];
   addToCart: (item: CartItem) => void;
-  removeFromCart: (sku: string) => void;
-  updateQty: (sku: string, qty: number) => void;
+  removeFromCart: (productId: string) => void;
+  updateQty: (productId: string, qty: number) => void;
   totalItems: number;
   totalAmount: number;
 };
@@ -19,29 +19,42 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addToCart = (item: CartItem) => {
     setItems((prev) => {
-      const existing = prev.find((p) => p.sku === item.sku);
+      const existing = prev.find(
+        (p) => p.productId === item.productId
+      );
+
       if (existing) {
         return prev.map((p) =>
-          p.sku === item.sku ? { ...p, qty: p.qty + item.qty } : p
+          p.productId === item.productId
+            ? { ...p, qty: p.qty + item.qty }
+            : p
         );
       }
+
       return [...prev, item];
     });
   };
 
-  const removeFromCart = (sku: string) => {
-    setItems((prev) => prev.filter((p) => p.sku !== sku));
+  const removeFromCart = (productId: string) => {
+    setItems((prev) =>
+      prev.filter((p) => p.productId !== productId)
+    );
   };
 
-  const updateQty = (sku: string, qty: number) => {
+  const updateQty = (productId: string, qty: number) => {
     if (qty < 1) return;
     setItems((prev) =>
-      prev.map((p) => (p.sku === sku ? { ...p, qty } : p))
+      prev.map((p) =>
+        p.productId === productId ? { ...p, qty } : p
+      )
     );
   };
 
   const totalItems = items.reduce((sum, i) => sum + i.qty, 0);
-  const totalAmount = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const totalAmount = items.reduce(
+    (sum, i) => sum + i.price * i.qty,
+    0
+  );
 
   return (
     <CartContext.Provider

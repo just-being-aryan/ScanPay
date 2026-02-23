@@ -14,12 +14,11 @@ import Animated, {
 } from "react-native-reanimated";
 import { useCart } from "../context/CartContext";
 import ProductPreviewSheet from "../components/ProductPreviewSheet";
-import { PRODUCTS } from "../data/products";
+import { getProductByBarcode } from "../db/database";
 
 export default function ScanScreen() {
   const { addToCart } = useCart();
   const [permission, requestPermission] = useCameraPermissions();
-  const [scanned, setScanned] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [quickAdd, setQuickAdd] = useState(false);
@@ -49,6 +48,42 @@ export default function ScanScreen() {
     );
   }
 
+  const handleScan = async (raw: string) => {
+    if (scanLocked || selectedProduct) return;
+
+    const barcode = raw.trim();
+
+    setScanLocked(true);
+    setIsCapturing(true);
+
+    rotation.value = withRepeat(
+      withTiming(360, { duration: 600 }),
+      -1
+    );
+
+    const product = await getProductByBarcode(barcode);
+
+    rotation.value = 0;
+    setIsCapturing(false);
+
+    if (!product) {
+      setScanLocked(false);
+      return;
+    }
+
+    if (quickAdd) {
+      addToCart({ ...product, qty: 1 });
+      setToast({ name: product.name });
+
+      setTimeout(() => {
+        setToast(null);
+        setScanLocked(false);
+      }, 2000);
+    } else {
+      setSelectedProduct(product);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -60,43 +95,9 @@ export default function ScanScreen() {
         <CameraView
           style={StyleSheet.absoluteFill}
           barcodeScannerSettings={{
-            barcodeTypes: ["qr", "ean13", "code128"],
+            barcodeTypes: ["code128", "ean13"],
           }}
-          onBarcodeScanned={({ data }) => {
-            if (scanned || selectedProduct || scanLocked) return;
-
-            setScanned(true);
-            setIsCapturing(true);
-
-            rotation.value = withRepeat(
-              withTiming(360, { duration: 600 }),
-              -1
-            );
-
-            setTimeout(() => {
-              const product = PRODUCTS[data];
-              if (!product) return;
-
-              if (quickAdd) {
-                addToCart({ ...product, qty: 1 });
-                setToast({ name: product.name });
-                setScanLocked(true);
-
-                setTimeout(() => {
-                  setToast(null);
-                  setScanLocked(false);
-                }, 2000);
-              } else {
-                setSelectedProduct(product);
-              }
-            }, 500);
-
-            setTimeout(() => {
-              rotation.value = 0;
-              setIsCapturing(false);
-              setScanned(false);
-            }, 600);
-          }}
+          onBarcodeScanned={({ data }) => handleScan(data)}
         />
 
         {!selectedProduct && (
@@ -111,9 +112,7 @@ export default function ScanScreen() {
               </Animated.View>
             )}
             <Text style={styles.scanText}>
-              {isCapturing
-                ? "Capturing… hold steady"
-                : "SCAN A BARCODE OR QR CODE"}
+              {isCapturing ? "Capturing…" : "SCAN PRODUCT BARCODE"}
             </Text>
           </Animated.View>
         )}
@@ -134,7 +133,7 @@ export default function ScanScreen() {
 
             <Pressable
               style={styles.quickAddRow}
-              onPress={() => setQuickAdd((v) => !v)}
+              onPress={() => setQuickAdd(v => !v)}
             >
               <View
                 style={[
@@ -176,14 +175,16 @@ export default function ScanScreen() {
               addToCart(item);
               setSelectedProduct(null);
               setToast({ name: item.name });
-              setScanLocked(true);
 
               setTimeout(() => {
                 setToast(null);
                 setScanLocked(false);
               }, 2000);
             }}
-            onClose={() => setSelectedProduct(null)}
+            onClose={() => {
+              setSelectedProduct(null);
+              setScanLocked(false);
+            }}
           />
         )}
       </View>
@@ -207,7 +208,6 @@ export default function ScanScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
-
   header: {
     height: 56,
     paddingHorizontal: 20,
@@ -215,11 +215,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-
   headerTitle: { color: "#fff", fontSize: 22, fontWeight: "600" },
-
-  cameraSection: { flex: 6, justifyContent: "center", alignItems: "center" },
-
+  cameraSection: { flex: 6 },
   capturePill: {
     position: "absolute",
     bottom: 40,
@@ -232,37 +229,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 30,
   },
-
   scanText: { color: "#fff", fontSize: 14 },
-
   bottomSection: {
     flex: 4,
     paddingHorizontal: 20,
     paddingTop: 32,
   },
-
-  bottomContent: {
-    alignItems: "center",
-    gap: 24,
-  },
-
-  articleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-
-  articleText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "500",
-  },
-
-  quickAddRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
+  bottomContent: { alignItems: "center", gap: 24 },
+  articleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  articleText: { color: "#fff", fontSize: 15, fontWeight: "500" },
+  quickAddRow: { flexDirection: "row", alignItems: "center" },
   checkbox: {
     width: 18,
     height: 18,
@@ -271,16 +247,9 @@ const styles = StyleSheet.create({
     borderColor: "#777",
     marginRight: 10,
   },
-
-  checkboxActive: {
-    backgroundColor: "#2563eb",
-    borderColor: "#2563eb",
-  },
-
+  checkboxActive: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
   quickAddText: { color: "#aaa", fontSize: 14 },
-
   toastSpacer: { marginTop: 35 },
-
   toast: {
     width: "100%",
     backgroundColor: "#0f172a",
@@ -290,7 +259,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-
   toastIcon: {
     width: 28,
     height: 28,
@@ -299,19 +267,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   toastTitle: { color: "#fff", fontSize: 14, fontWeight: "600" },
-  toastSub: { color: "#cbd5f5", fontSize: 12, marginTop: 2 },
-
+  toastSub: { color: "#cbd5f5", fontSize: 12 },
   footer: { paddingHorizontal: 20, paddingBottom: 20 },
-
   footerText: {
     color: "#aaa",
     textAlign: "center",
     fontSize: 12,
     marginBottom: 10,
   },
-
   cartBtn: {
     backgroundColor: "#1f2937",
     borderRadius: 14,
@@ -320,17 +284,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
   },
-
   cartLeft: { color: "#888", fontSize: 16 },
   cartRight: { color: "#888", fontSize: 14 },
-
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#000",
   },
-
   btn: {
     backgroundColor: "#1f2937",
     paddingHorizontal: 20,
