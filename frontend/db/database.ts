@@ -68,3 +68,53 @@ export const getProductByArticle = async (
     [article]
   )) as ProductRow | null;
 };
+
+
+
+
+
+
+export const initCartTable = async () => {
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS cart (
+      productId TEXT PRIMARY KEY NOT NULL,
+      sku TEXT,
+      articleNumber TEXT,
+      barcode TEXT,
+      name TEXT,
+      size TEXT,
+      price REAL,
+      mrp REAL,
+      image TEXT,
+      qty INTEGER
+    );
+  `);
+};
+
+export const saveCartItems = async (items: any[]) => {
+  await db.execAsync(`DELETE FROM cart;`);
+
+  for (const i of items) {
+    await db.runAsync(
+      `INSERT INTO cart
+       (productId, sku, articleNumber, barcode, name, size, price, mrp, image, qty)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        i.productId,
+        i.sku,
+        i.articleNumber,
+        i.barcode,
+        i.name,
+        i.size,
+        i.price,
+        i.mrp,
+        "",
+        i.qty,
+      ]
+    );
+  }
+};
+
+export const loadCartItems = async () => {
+  return await db.getAllAsync(`SELECT * FROM cart;`);
+};

@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Product } from "../types/product";
+import { saveCartItems, loadCartItems } from "../db/database";
 
 type CartItem = Product & { qty: number };
 
@@ -16,45 +17,59 @@ const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+
+
+  useEffect(() => {
+    (async () => {
+      const rows: any[] = await loadCartItems();
+      if (rows?.length) {
+        setItems(
+          rows.map(r => ({
+            ...r,
+            image: require("../assets/products/shirt.jpg"),
+          }))
+        );
+      }
+      setHydrated(true);
+    })();
+  }, []);
+
+
+  useEffect(() => {
+    if (!hydrated) return;
+    saveCartItems(items);
+  }, [items, hydrated]);
 
   const addToCart = (item: CartItem) => {
-    setItems((prev) => {
-      const existing = prev.find(
-        (p) => p.productId === item.productId
-      );
-
+    setItems(prev => {
+      const existing = prev.find(p => p.productId === item.productId);
       if (existing) {
-        return prev.map((p) =>
+        return prev.map(p =>
           p.productId === item.productId
             ? { ...p, qty: p.qty + item.qty }
             : p
         );
       }
-
       return [...prev, item];
     });
   };
 
   const removeFromCart = (productId: string) => {
-    setItems((prev) =>
-      prev.filter((p) => p.productId !== productId)
-    );
+    setItems(prev => prev.filter(p => p.productId !== productId));
   };
 
   const updateQty = (productId: string, qty: number) => {
     if (qty < 1) return;
-    setItems((prev) =>
-      prev.map((p) =>
+    setItems(prev =>
+      prev.map(p =>
         p.productId === productId ? { ...p, qty } : p
       )
     );
   };
 
   const totalItems = items.reduce((sum, i) => sum + i.qty, 0);
-  const totalAmount = items.reduce(
-    (sum, i) => sum + i.price * i.qty,
-    0
-  );
+  const totalAmount = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
   return (
     <CartContext.Provider

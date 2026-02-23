@@ -6,7 +6,7 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useCart } from "../context/CartContext";
 import { getProductByArticle } from "../db/database";
 import ProductPreviewSheet from "../components/ProductPreviewSheet";
-
+import { PRODUCTS } from "../data/seedProducts";
 export default function EnterArticle() {
   const { addToCart } = useCart();
   const [article, setArticle] = useState("");
@@ -21,20 +21,21 @@ export default function EnterArticle() {
     if (!product) return;
     Keyboard.dismiss();
 
-    setSelectedProduct({
-      productId: product.productId,
-      sku: product.sku,
-      articleNumber: product.articleNumber,
-      barcode: product.barcode,
-      name: product.name,
-      size: product.size,
-      price: product.price,
-      mrp: product.mrp,
-      image:
-        product.image && product.image.length > 0
-          ? { uri: product.image }
-          : require("../assets/products/shirt.jpg"),
-    });
+    const fullProduct = PRODUCTS.find(
+  (p) => p.productId === product.productId
+);
+
+setSelectedProduct({
+  productId: product.productId,
+  sku: product.sku,
+  articleNumber: product.articleNumber,
+  barcode: product.barcode,
+  name: product.name,
+  size: product.size,
+  price: product.price,
+  mrp: product.mrp,
+  image: fullProduct?.image ?? require("../assets/products/shirt.jpg"),
+});
   };
 
   return (

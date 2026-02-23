@@ -65,7 +65,7 @@ export default function CartPage() {
                   <Text style={styles.qtyText}>+</Text>
                 </Pressable>
 
-                <Pressable onPress={() => removeFromCart(item.sku)}>
+                <Pressable onPress={() => removeFromCart(item.productId)}>
                   <Text style={styles.remove}>Remove</Text>
                 </Pressable>
               </View>
