@@ -2,10 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-import productRoutes from './routes/product.routes.js';
 import orderRoutes from './routes/order.routes.js';
 import { notFound, errorHandler } from './middleware/error.middleware.js';
-
+import webhookRoutes from './routes/webhook.routes.js';
 dotenv.config();
 
 const app = express();
@@ -18,9 +17,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
-
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
+app.use("/webhooks", webhookRoutes);
+app.use("/orders", orderRoutes);
 
 
 app.use(notFound);

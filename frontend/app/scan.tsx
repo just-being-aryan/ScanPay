@@ -246,6 +246,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#777",
     marginRight: 10,
+
   },
   checkboxActive: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
   quickAddText: { color: "#aaa", fontSize: 14 },
