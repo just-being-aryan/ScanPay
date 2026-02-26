@@ -41,6 +41,28 @@ function signReceipt(hash) {
   return signature.toString("base64");
 }
 
+function buildReceiptPayload(order, items) {
+  const issuedAt = new Date();
+  const expiresAt = new Date(issuedAt.getTime() + 10 * 60 * 1000); // 10 min
+
+  return {
+    orderId: order.orderId,
+    intentId: order.intentId,
+    amount: order.amount,
+    currency: order.currency,
+
+    items: items.map(i => ({
+      sku: i.sku,
+      qty: i.qty,
+      unitPrice: i.unitPrice,
+      lineTotal: i.lineTotal
+    })),
+
+    issuedAt: issuedAt.toISOString(),
+    expiresAt: expiresAt.toISOString()
+  };
+}
+
 export async function generateReceipt({ orderId, items }) {
   const order = await Order.findOne({ orderId });
 
